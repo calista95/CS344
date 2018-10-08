@@ -15,3 +15,10 @@ This program performs standard matrix operations, which include:
 ```
  ./matrix <operation_name> <matrix1> <matrix2>
 ```
+# Example of a valid matrix argument:
+```
+ cat exampleMatrix
+ 1 2 3 4
+ 5 6 7 8
+ 
+```
