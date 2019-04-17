@@ -1,0 +1,461 @@
+#! /bin/bash
+
+######CS344 Assignment 1######
+#Name: Calista Wong
+#Date: 10/8/2018
+#Description: This program performs standard matrix operations, which include:
+# dims: getting the dimensions of a matrix
+# transpose: transposing the matrix
+# mean: getting the mean of each column of a matrix and producing a 1 x N vector
+# add: summing up two matrices with the same dimensions
+# multiply: multiplying two matrices with equivalent inner dimensions
+
+
+#function for getting the dimensions
+dims(){
+
+	#determine number of rows
+	rows=0
+	while read -r CURRENT_LINE
+	do
+		((rows++)) #increment rows with each additional row
+	done<"$1"
+
+	#determine number of columns 
+	columns=$( head -n 1 $1 | wc -w) #return first line of file, then get word count for the line
+	
+	echo -e "$rows $columns"  > tempFile
+
+	#display results
+	cat tempFile
+	rm tempFile #cleanup
+}
+
+#function for getting the transpose
+transpose(){
+
+	#determine number of columns 
+	columns=$( head -n 1 $1 | wc -w)
+
+	#determine number of rows
+	rows=0
+	while read -r CURRENT_LINE
+	do
+		((rows++)) #increment rows with each additional row
+	done<"$1"
+
+	###files and variables declaration###
+	touch tempFile #to temporarily store numbers of the same column to sum them up together 
+	touch resultsFile #to write our result onto
+	i=1 #variable to keep track of line tabs
+
+	#loop to iterate through each file column
+	for (( n=1; n<=columns; n++ ))
+		do 
+			cut -f $n $1 > tempFile #put file column in a temporary file
+			#inner loop to transpose that column line from vertical to horizontal
+			while read -r CURRENT_LINE
+			do
+				if [ $i == $rows ] #do not add tab to the last element before a new line
+				then
+					echo "$CURRENT_LINE" >> resultsFile
+					i=0 #reset
+				else
+					echo -n -e "$CURRENT_LINE\t" >> resultsFile 
+
+				fi
+				(( i++ ))
+			done < tempFile
+		done
+
+		#display results
+		cat resultsFile
+
+		#file cleanup
+		rm resultsFile 
+		rm tempFile
+}
+
+#function for getting the mean
+mean(){
+	#determine number of columns
+	columns=$( head -n 1 $1 | wc -w)
+
+	#determine number of rows
+	rows=0
+	while read -r CURRENT_LINE
+	do
+		((rows++))
+	done<"$1"
+
+	#file declaration
+	touch results #where we will store our results
+	touch tempFile #temporary file for storing a column of numbers
+
+	for (( i=1; i<=$columns; i++ ))
+	do
+		cut -f $i $1 > tempFile #put the entire column in one file
+		
+		a=0 #cumulative sum of the column, reset after each round
+   		while read -r CURRENT #process numbers in the same column
+        	do
+			#echo "$CURRENT"
+			a=$(($a + $CURRENT )) #sum of the two numbers
+		done<tempFile
+		
+		#calculate mean here
+		b=$rows #number of argument by default always the same number as that of rows
+		avg=$(( (a + (b/2)*( (a>0)*2-1 )) / b ))
+
+		#write into file
+		if [ $i == $columns ]
+			then
+			echo -n "$avg" >> results 	
+		else
+			echo -n -e "$avg\t" >> results #write results down
+		fi
+	done
+
+	echo >> results #create new line
+	cat results #display results
+
+	#cleanup
+	rm results
+	rm tempFile
+}
+
+
+#function for getting the addition of two matrices
+add(){
+	#ensure that both the matrices have the same dimensions
+	
+	#determine number of columns for m1
+	columns1=$( head -n 1 $1 | wc -w)
+
+	#determine number of rows for m1
+	rows1=0
+	while read -r CURRENT_LINE
+	do
+		((rows1++))
+	done<"$1"
+
+	#determine number of columns for m1
+	columns2=$( head -n 1 $2 | wc -w)
+
+	#determine number of rows for m1
+	rows2=0	
+	while read -r CURRENT_LINE
+	do
+		((rows2++))
+	done<"$2"
+
+	if [ "$rows1" -ne "$rows2" ] || [ "$columns1" -ne "$columns2" ]; then
+			echo "Dimensions between your two matrices are not equal. Adding is not possible."1>&2
+
+			exit 1
+	fi
+
+	###files and variables declaration###
+	touch tempFile1 #to temporarily store numbers of the same column to sum them up together 
+	touch tempFile2 #to temporarily store numbers of the same column to sum them up together 
+	touch resultsFile #to write our result onto
+
+	#loop to iterate through each file line
+	for (( i=1; i<=columns1; i++ ))
+		do 
+			cut -f $i $1 > tempFile1
+			cut -f $i $2 > tempFile2
+
+			sum=0 #stores the sum of the two array variables, var1+var2 (reset to zero after every iteration)
+
+			#read from both files concurrently to get the two variables that we need to add
+			while read file1Line <&3 && read file2Line <&4
+				do
+					var1=$file1Line
+					var2=$file2Line
+					sum=$(($var1+$var2)) #add the two variables together 
+					echo -n "$sum " >> resultsFile #put the results in our results file
+				done 3<tempFile1 4<tempFile2
+
+			echo >> resultsFile #line break between the rows
+		done
+
+
+	#transpose it so that we get the correct format (this is the same exact code for the transpose function)
+
+	#determine number of columns for resultsFile
+	columns=$rows2 #technically could have grabbed any of the two columns since they are the same
+
+	#determine number of rows for reultsFile
+	rows=$columns2 	#technically could have grabbed any of the two rows since they are the same
+
+	###files and variables declaration###
+	touch tempFile #to temporarily store numbers of the same column  
+	touch transposedFile #to write our final result onto
+
+	#loop to iterate through each file line
+	for (( i=1; i<=columns; i++ ))
+		do 
+			cut -d" " -f $i resultsFile > tempFile
+
+			#inner loop
+			iter=0 #iteration variable to keep track of when it is time for a line break so we can tab correctly
+			while read -r CURRENT_LINE
+			do
+				(( iter++ ))
+				if [ $iter == $rows ]
+					then
+					echo -n "$CURRENT_LINE" >> transposedFile
+				else
+					echo -n -e "$CURRENT_LINE\t" >> transposedFile
+				fi	
+
+			done < "tempFile"
+			echo  >> transposedFile #produce newline 
+		done
+
+		#display final result
+		cat transposedFile
+
+	#file cleanup
+	rm tempFile1
+	rm tempFile2
+	rm resultsFile
+	rm tempFile
+	rm transposedFile
+}
+
+multiply(){
+    	
+	#determine number of columns for m1
+        columns1=$( head -n 1 $1 | wc -w)
+
+        #determine number of rows for m1
+	rows1=0
+        while read -r CURRENT_LINE
+        do
+                ((rows1++))
+        done<"$1"
+
+        #determine number of columns for m2
+        columns2=$( head -n 1 $2 | wc -w)
+
+        #determine number of rows for m2
+	rows2=0	
+        while read -r CURRENT_LINE
+        do
+                ((rows2++))
+        done<"$2"
+
+        #ensure that inner dimensions for both the matrices are the same
+        if [[ "$columns1" -ne "$rows2" ]]
+                then
+                        echo "Inner dimensions are not equal. Matrix multiplication is impossible."1>&2
+
+                        exit 1
+        fi
+
+        ### file declarations ###
+        touch resultsFile #this is where we will write our results onto
+        touch file1row #holds the current row of file 1
+        touch file2column #holds the current column of file 2
+        touch tempRow #temporary file for holding row while we transpose row
+        touch tempfile #temporary file for holding onto data while we are cutting the first line out
+	touch row #holds current row being processed
+        touch column #holds current column being processed
+        touch finalResults #where we store the final results derived from resultsFile, correctly formatted
+
+	#put input data into files so we can work with it easier
+        cat $1 > file1row
+        cat $2 > file2column
+
+        for (( n=1; n<=$rows1 ; n++ )) #first loop: grab row line of first file
+                do
+                        ###handle first file here###
+                        head -1 file1row > tempRow #will grab row line of the file
+
+                        #transpose the tempRow and put it into row (this is just for formatting purposes)
+                        for (( p=1; p<=$columns1 ; p++ ))
+                                do
+                                        cut -f $p tempRow >> row
+                                done
+                        > tempRow #clear file
+
+                        #increment to next line, cutting out the first line
+                        tail -n +2 file1row > tempfile
+                        cat tempfile > file1row
+
+                for (( m=1; m<=$columns2 ; m++ )) #second loop: grab column line of second file
+                        do
+                                ###handle second file here###
+   				cut -f $m file2column > column
+                                ###process data here###
+                                sum=0 #keep track of Array1[i][k] + Array2[k][j]
+                                while read file1line <&3 && read file2line <&4 #third loop: process the value pairs by reading two files concurrently
+                                        do
+                                                #variables to hold first and second values
+                                                var1=$file1line
+                                                var2=$file2line
+						#multiply, then add to cumulative sum
+                                                tempSum=`expr $var1 \* $var2`
+                                                sum=$(($sum+$tempSum))
+                                        done 3<row 4<column
+
+                                        echo "$sum " >> resultsFile #store sum here
+                        done
+
+                        >row #clear row file so we can process the next pair
+
+                done
+
+                ###deal with any formatting issues###
+                iterator=0 #variable to deal with line breaks (new line only when iterator == #columns)
+                while read -r CURRENT
+                        do
+                                (( iterator++ ))
+				if [ $iterator -eq $columns2 ]
+					then
+						echo  "$CURRENT" >> finalResults
+						iterator=0 #reset
+					else
+						echo -n -e "$CURRENT\t" >> finalResults
+                                        fi
+                        done<resultsFile
+
+		#display final results
+                cat finalResults
+
+		#file cleanup
+		rm resultsFile
+		rm file1row
+		rm file2column
+		rm tempRow
+		rm row
+		rm column
+		rm tempfile
+		rm finalResults
+}
+
+
+
+### Main ###
+#Check for valid arguments
+#Determine which functions to send arguments
+
+if [ "$1" == "dims" ]
+	then
+		if [ $# -gt 2 ] #argument cout is greater than 2 (arguments should only include function and matrix)
+			then
+				echo "You do not have the correct number of arguments." 1>&2 
+				exit 1
+		elif [ $# -eq 2 ] #there are exactly two arguments
+			then			
+				if [ ! -f $2 ] #argument count is 2 but the file named does not exist
+					then
+						echo "File does not exist." 1>&2
+						exit 1
+				elif [ ! -r $2 ] #file exists but is not readable
+					then
+						echo "File is not readable." 1>&2
+						exit 1
+				else #send data to dims function
+					dims $2 #send data to dims function
+					exit 0	
+				fi
+		elif [ $# -eq 1 ] #only one argument, the input file was piped
+			then
+				touch file
+				cat > file
+				dims file
+				rm file
+				exit 0
+		fi
+elif [ "$1" == "transpose" ]
+	then
+		if [ $# -ne 2 ] #argument cout is not 2 (arguments should only include function and matrix)
+			then
+				echo "You do not have the correct number of arguments." 1>&2 
+				exit 1
+		elif [ $# -eq 2 ] #there are exactly two arguments
+			then			
+				if [ ! -f $2 ] #argument count is 2 but the file named does not exist
+					then
+						echo "File does not exist." 1>&2
+						exit 1
+				elif [ ! -r $2 ] #file exists but is not readable
+					then
+						echo "File is not readable." 1>&2
+						exit 1
+				else #send data to dims function
+					transpose $2 #send data to dims function
+					exit 0	
+				fi
+		elif [ $# -eq 1 ] #only one argument, the input file was piped
+			then
+				touch file
+				cat > file
+				transpose file
+				rm file
+				exit 0
+		fi
+elif [ "$1" == "mean" ]
+	then
+		if [ $# -ne 2 ] #argument cout is not 2 (arguments should only include function and matrix)
+			then
+				echo "You do not have the correct number of arguments." 1>&2 
+				exit 1
+		elif [ $# -eq 2 ] #there are exactly two arguments
+			then			
+				if [ ! -f $2 ] #argument count is 2 but the file named does not exist
+					then
+						echo "File does not exist." 1>&2
+						exit 1
+				elif [ ! -r $2 ] #file exists but is not readable
+					then
+						echo "File is not readable." 1>&2
+						exit 1
+				else #send data to dims function
+					mean $2 #send data to dims function
+					exit 0	
+				fi
+		elif [ $# -eq 1 ] #only one argument, the input file was piped
+			then
+				touch file
+				cat > file
+				mean file
+				rm file
+				exit 0
+		fi
+
+elif [ "$1" == "add" ]
+	then
+		if [ $# -ne 3 ] #argument cout is not 3 (arguments should only include function, matrix1, and matrix2)
+			then
+				echo "You do not have the correct number of arguments."1>&2 
+				exit 1
+		elif [ ! -f "$2" ] || [ ! -f "$3" ] #argument count is 3 but one or more of the files are not readable
+			then
+				echo "At least one file is not readable."1>&2
+				exit 1
+		else	
+			add $2 $3 #send data to add function
+			exit 0
+		fi
+elif [ "$1" == "multiply" ]
+	then
+		if [ $# -ne 3 ] #argument cout is not 3 (arguments should only include function, matrix1, and matrix2)
+			then
+				echo "You do not have the correct number of arguments."1>&2  
+				exit 1
+		elif [ ! -f "$2" ] || [ ! -f "$3" ] #argument count is 3 but one or more of the files are not readable
+			then
+				echo "At least one file is not readable."1>&2
+				exit 1
+		else
+			multiply $2 $3 #send data to multiply function 
+			exit 0
+		fi
+else
+	echo "There was an error. Please check your arguments."1>&2
+	exit 1
+fi
